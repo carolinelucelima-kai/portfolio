@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-scale, initial-scale=1.0" />
+  <title>Roleta de Prêmios</title>
+
+  <style>
+    :root {
+      --accent: #10b981;
+      --bg: #0f1724;
+      --muted: #9ca3af;
+      --card-bg: rgba(255, 255, 255, 0.05);
+    }
+
+     body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', Arial, sans-serif;
+      color: #f8fafc;
+      background: radial-gradient(circle at top, #07172b, #030a13);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* FUNDO AQUI */
+    body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: url('background.png') center center no-repeat;
+      background-size: cover; 
+      transform-origin: center center;
+      z-index: -1;
+      opacity: 0.95;
+    }
+
+    .container {
+        display: flex;
+        gap: 24px;
+        background: var(--card-bg);
+        border-radius: 16px;
+        backdrop-filter: blur(5px);
+        box-shadow: 0 6px 24px (0, 0, 0, 0.5);
+        padding: 24px;
+        max-width: 1100px;
+        flex-wrap: wrap;
+        justify-content: center;
+        z-index: 1;
+        position: relative;
+
+        transform: translateX(-150px); 
+    }
+
+    .wheel-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    canvas {
+      border-radius: 50%;
+    }
+
+    .pointer {
+      width: 0;
+      height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-bottom: 28px solid var(--accent);
+      margin-top: -6px;
+      filter: drop-shadow(0 4px 8px rgba(16, 185, 129, 0.6));
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      background: var(--accent);
+      color: #001b12;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.2s;
+    }
+
+    button:hover {
+      background: #0fa06f;
+      transform: scale(1.05);
+    }
+
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: #000;
+        font-weight: 600;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      width: 340px;
+    }
+
+    textarea {
+      width: 100%;
+      resize: none;
+      background: transparent;
+      color: #f1f5f9;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 16px; 
+       font-weight: 600; 
+    }
+
+    label {
+        font-size: 18px;
+        font-weight: 700;
+        color: #000; 
+    }
+
+    .prize-list {
+      margin-top: 10px;
+      max-height: 250px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+
+    .prize-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 4px;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+
+    .winner {
+      display: none;
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), rgba(6, 95, 70, 0.1));
+      color: var(--accent);
+      font-weight: bold;
+      text-align: center;
+      animation: fadeIn 0.6s ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    footer {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .right-panel {
+        font-weight: 700;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="wheel-section">
+      <canvas id="wheel" width="480" height="480"></canvas>
+      <div class="pointer"></div>
+      <div class="controls">
+        <button id="spinBtn">Girar</button>
+        <button id="quickBtn" class="btn-secondary">Giro Rápido</button>
+        <button id="resetBtn" class="btn-secondary">Resetar</button>
+      </div>
+      <div id="winnerMsg" class="winner"></div>
+    </div>
+
+    <div class="right-panel">
+      <label for="prizes">Prêmios (uma por linha):</label>
+      <textarea id="prizes" rows="8">10% de desconto
+Caneca exclusiva
+Cupom R$20
+Entrega grátis
+Produto surpresa
+Pontos de fidelidade x500</textarea>
+
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button id="applyBtn" class="btn-secondary">Aplicar</button>
+        <button id="sampleBtn" class="btn-secondary">Exemplo</button>
+      </div>
+
+      <div id="prizeList" class="prize-list"></div>
+      <footer>Salve como <strong>roleta_de_premios.html</strong> e abra no navegador.</footer>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    const spinBtn = document.getElementById('spinBtn');
+    const quickBtn = document.getElementById('quickBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const applyBtn = document.getElementById('applyBtn');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const prizesInput = document.getElementById('prizes');
+    const prizeList = document.getElementById('prizeList');
+    const winnerMsg = document.getElementById('winnerMsg');
+
+    let prizes = [];
+    let colors = [];
+    let angle = -Math.PI / 2;
+    let velocity = 0;
+    let spinning = false;
+    const friction = 0.985;
+
+    const randColor = (i, n) => `hsl(${(360 / n) * i}, 80%, 60%)`;
+
+    const parsePrizes = (text) => text.split('\n').map(t => t.trim()).filter(Boolean);
+
+    const drawWheel = () => {
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = 230;
+      const slice = (Math.PI * 2) / prizes.length;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = 0; i < prizes.length; i++) {
+        const start = angle + i * slice;
+        const end = start + slice;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, start, end);
+        ctx.fillStyle = colors[i];
+        ctx.fill();
+      }
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px Inter';
+
+      for (let i = 0; i < prizes.length; i++) {
+        ctx.save();
+        ctx.rotate(angle + i * slice + slice / 2);
+        ctx.fillText(prizes[i], radius - 12, 6);
+        ctx.restore();
+      }
+
+      ctx.restore();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+    }  
+
+    const updatePrizeList = () => {
+      prizeList.innerHTML = prizes.map((p, i) =>
+        `<div class='prize-item'><span>${i + 1}. ${p}</span><span>${colors[i]}</span></div>`
+      ).join('');
+    };
+
+    const spin = (speed = 1) => {
+      if (spinning || prizes.length === 0) return;
+      velocity = (Math.random() * 0.25 + 0.35) * speed;
+      spinning = true;
+      requestAnimationFrame(animate);
+    };
+
+    const animate = () => {
+      if (!spinning) return;
+      angle += velocity;
+      velocity *= friction;
+      drawWheel();
+      if (velocity < 0.002) {
+        spinning = false;
+        showWinner();
+      } else {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    const showWinner = () => {
+      const slice = (Math.PI * 2) / prizes.length;
+      const adjustedAngle = (Math.PI * 1.5 - angle + Math.PI * 2) % (Math.PI * 2);
+      const index = Math.floor(adjustedAngle / slice) % prizes.length;
+      winnerMsg.textContent = `🎉 Parabéns! Você ganhou: ${prizes[index]} 🎉`;
+      winnerMsg.style.display = 'block';
+    };
+
+    spinBtn.addEventListener('click', () => spin(1));
+    quickBtn.addEventListener('click', () => spin(2.5));
+    resetBtn.addEventListener('click', () => {
+      angle = -Math.PI / 2;
+      velocity = 0;
+      spinning = false;
+      winnerMsg.style.display = 'none';
+      drawWheel();
+    });
+
+    applyBtn.addEventListener('click', () => {
+      prizes = parsePrizes(prizesInput.value);
+      const baseColors = ["#ff6600", "#000000"];
+        colors = Array.from({ length: prizes.length }, (_, i) => baseColors[i % baseColors.length]);
+      updatePrizeList();
+      drawWheel();
+    });
+
+    sampleBtn.addEventListener('click', () => {
+      prizesInput.value = `10% de desconto
+Caneca exclusiva
+Cupom R$20
+Entrega grátis
+Produto surpresa
+Pontos de fidelidade x500`;
+      applyBtn.click();
+    });
+
+    (function init() {
+      prizes = parsePrizes(prizesInput.value);
+        const baseColors = ["#ff6600", "#000000"];
+        colors = Array.from({ length: prizes.length }, (_, i) => baseColors[i % baseColors.length]);
+        updatePrizeList();
+      drawWheel();
+    })();
+  </script>
+</body>
+</html>
+
